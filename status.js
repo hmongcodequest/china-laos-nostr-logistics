@@ -1,8 +1,7 @@
 import { finalizeEvent, getPublicKey } from "https://esm.sh/nostr-tools@2.10.4";
+import { getOrg, roleAllowed, canTransition, verifyLocalActor, latestLocalEvent, ROLES, STATUS_FLOW } from "./org.js";
 
 const KIND = 38383;
-const STATUS_FLOW = ["created", "picked_up", "in_transit", "customs", "delivered", "exception"];
-const ROLES = ["shipper", "warehouse", "carrier", "customs", "receiver", "admin"];
 const STORAGE = { settings: "cln_settings_v1", secret: "cln_secret_v1", shipments: "cln_shipments_v1" };
 
 const esc = (value = "") => String(value).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
@@ -37,6 +36,8 @@ function makeEvent(shipment, status, note, role) {
   const me = identity();
   if (!me) throw new Error("Nostr identity not found.");
   const timestamp = Math.floor(Date.now() / 1000);
+  const org = getOrg();
+  const previous = latestLocalEvent(shipment);
   const content = {
     protocol: "china-laos-nostr-logistics/v1",
     type: "shipment",
@@ -47,12 +48,14 @@ function makeEvent(shipment, status, note, role) {
       weight: shipment.weight, image: shipment.image, visibility: shipment.visibility
     },
     update: { status, note, timestamp },
-    actor: { role, pubkey: me.pubkey }
+    actor: { role, pubkey: me.pubkey },
+    organization: { id: org.orgId },
+    chain: { previousEventId: previous?.id || null }
   };
   return finalizeEvent({
     kind: KIND,
     created_at: timestamp,
-    tags: [["t", shipment.trackingId], ["d", shipment.trackingId], ["status", status], ["type", "shipment"]],
+    tags: [["t", shipment.trackingId], ["d", shipment.trackingId], ["status", status], ["type", "shipment"], ["org", org.orgId], ["role", role], ...(previous?.id ? [["prev", previous.id]] : [])],
     content: JSON.stringify(content)
   }, me.secret);
 }
@@ -99,6 +102,7 @@ function mount() {
 
   const shipments = load(STORAGE.shipments, []);
   const shipment = shipments.find(s => s.trackingId?.toLowerCase() === id.toLowerCase());
+  const org = getOrg();
 
   const box = document.createElement("div");
   box.id = "clnStatusUpdater";
@@ -107,7 +111,7 @@ function mount() {
     <div class="mb-3 flex items-center justify-between gap-3">
       <div>
         <div class="font-semibold text-sm">Update shipment status</div>
-        <div class="text-xs text-slate-500 mt-1">Create a new signed Nostr event.</div>
+        <div class="text-xs text-slate-500 mt-1">Create a new signed Nostr event under the configured organization.</div>
       </div>
       <span class="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2 py-1 text-[10px] text-cyan-200">SIGNED</span>
     </div>
@@ -135,6 +139,12 @@ function mount() {
     const role = String(data.get("role"));
     const note = String(data.get("note") || "").trim() || `Status changed to ${status}`;
     if (!STATUS_FLOW.includes(status) || !ROLES.includes(role)) return toast("Invalid status or role.");
+
+    const actor = verifyLocalActor(status, role);
+    if (!actor.ok) return toast(actor.reason);
+    if (!canTransition(shipment.status || "created", status, role)) {
+      return toast(`Invalid transition: ${shipment.status || "created"} → ${status}`);
+    }
 
     try {
       const event = makeEvent(shipment, status, note, role);
