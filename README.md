@@ -79,3 +79,33 @@ The repository includes `.github/workflows/pages.yml`.
 ## License
 
 Add the project's preferred license before production release.
+
+
+## Signed status workflow
+
+The application now supports additional signed shipment events for operational updates.
+
+Status lifecycle:
+- created
+- picked_up
+- in_transit
+- customs
+- delivered
+- exception
+
+Operational roles:
+- shipper
+- warehouse
+- carrier
+- customs
+- receiver
+- admin
+
+Each status update records the selected role and signer public key in the event actor metadata. These role values are application metadata only; they are **not server-side authorization**. Production authorization should use organization-controlled keys, role-specific identities, and signed transition rules.
+
+## Next production phase
+
+- Enforce signed status-transition rules.
+- Add organization-level identities and key management.
+- Add NIP-44 encrypted private shipments.
+- Add relay health, retry queue and IndexedDB persistence.
