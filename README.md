@@ -1,39 +1,54 @@
 # China–Laos Nostr Logistics & Tracking
 
-A serverless, decentralized shipment tracking MVP for China → Laos logistics.
+Serverless decentralized shipment tracking for the China → Laos logistics route.
 
-## Stack
+## Architecture
 
-- HTML5 / CSS3
-- Tailwind CSS CDN
-- Noto Sans Lao
-- Vanilla JavaScript ES6 modules
-- Nostr relays over WebSocket
-- Nostr event kind **38383** for the application's shipment events
-- Schnorr signatures through `nostr-tools`
-- Browser LocalStorage for local cache / offline MVP
-- GitHub Pages compatible static hosting
+- **Frontend:** HTML5, CSS3, Tailwind CSS CDN, Noto Sans Lao
+- **Application:** Vanilla JavaScript ES6 modules / SPA-style view switching
+- **Transport:** Nostr WebSocket relays
+- **Event model:** application-defined Nostr kind **38383**
+- **Signing:** Schnorr signatures via `nostr-tools`
+- **Local cache:** browser LocalStorage
+- **Hosting:** GitHub Pages / any static hosting
+- **Backend:** none required for the MVP
 
-## Features
+## Implemented features
 
-- Create shipment with a unique tracking ID
-- Signed Nostr shipment events
-- Publish public shipment events to configurable relays
-- Search shipment history from local cache + Nostr relays
-- Tracking URL: `?track=CLN-...`
-- Share link and QR code
-- Responsive dark/glassmorphism UI
-- Local/private mode that does not publish the shipment
-- Configurable Nostr relay list
-- No traditional backend or database required for the MVP
+- Create unique `CLN-...` tracking IDs with cargo metadata.
+- Create and sign Nostr shipment events locally.
+- Publish public events to configurable relays.
+- Search shipment history locally and through Nostr relays.
+- Share tracking URLs with `?track=CLN-...`.
+- Copy share links and generate QR codes.
+- Responsive dark/glassmorphism UI with Lao-friendly typography.
+- Dashboard statistics and recent shipments.
+- Public vs local-only shipment visibility.
+- Configurable relay list and browser-local Nostr identity.
 
-## Important privacy note
+## Nostr event contract
 
-The MVP treats **private** as local-only: the event is not published to relays. It does **not** encrypt a published event. If private data must be stored on relays, implement NIP-44 encryption and a proper key-management strategy before production use.
+Each shipment event uses:
+
+- kind: `38383`
+- `["t", trackingId]`
+- `["d", trackingId]`
+- `["status", status]`
+- `["type", "shipment"]`
+
+Content contains the application protocol version, shipment metadata and a status update.
+
+## Privacy and security
+
+The MVP's **private** mode means local-only storage: the event is not published to relays.
+
+It does **not** provide encrypted relay storage. For production private shipments, add NIP-44 encryption, key separation/rotation, access control and a reviewed threat model.
+
+The generated private key is stored in browser LocalStorage. Clearing site data removes the local identity. Do not use this demo identity for valuable assets or production custody.
 
 ## Run locally
 
-Because `app.js` imports `nostr-tools` as an ES module, serve the folder through a local HTTP server:
+Serve the folder over HTTP because `app.js` imports `nostr-tools` as an ES module:
 
 ```bash
 python -m http.server 8080
@@ -43,32 +58,24 @@ Open `http://localhost:8080`.
 
 ## GitHub Pages
 
-Enable GitHub Pages from the repository settings and publish from the `main` branch/root.
+The repository includes `.github/workflows/pages.yml`.
+
+1. Push/merge to `main`.
+2. In GitHub, open **Settings → Pages**.
+3. Select **GitHub Actions** as the Pages source if required.
+4. The workflow publishes the repository root as a static site.
 
 ## Production roadmap
 
-1. NIP-44 encrypted private shipments.
-2. Role-based signing identities for warehouse, carrier, customs and receiver.
-3. Signed status-transition rules.
-4. NIP-05 identities.
-5. Relay redundancy and retry queue.
-6. Indexed local cache with IndexedDB.
-7. Optional geolocation checkpoints.
-8. Customs/document attachments via content-addressed storage.
-9. Multi-language UI: Lao / Chinese / English.
-10. Automated tests and security review.
-
-## Event shape
-
-Each event uses kind `38383`, with tags such as:
-
-- `["t", trackingId]`
-- `["d", trackingId]`
-- `["status", status]`
-- `["type", "shipment"]`
-
-The event content contains the application protocol version, shipment metadata and a status update.
+1. Shipment status updates for warehouse/carrier/customs/receiver roles.
+2. Signed status-transition rules and organization-level identities.
+3. NIP-44 encrypted private shipments.
+4. Relay health checks, retry queue and IndexedDB cache.
+5. NIP-05 identities.
+6. Content-addressed storage for images and customs documents.
+7. Lao / Chinese / English localization.
+8. Automated tests and security review.
 
 ## License
 
-Add your preferred license before public production use.
+Add the project's preferred license before production release.
