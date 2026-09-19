@@ -109,3 +109,35 @@ Each status update records the selected role and signer public key in the event 
 - Add organization-level identities and key management.
 - Add NIP-44 encrypted private shipments.
 - Add relay health, retry queue and IndexedDB persistence.
+
+
+## Organization identity and signed transitions
+
+The production-security phase now adds a local organization registry and transition policy.
+
+Organization configuration:
+- organization ID and name
+- organization admin public key
+- trusted public keys for shipper, warehouse, carrier, customs and receiver roles
+- role-specific status permissions
+
+Signed status events now include:
+- organization ID
+- role
+- signer public key
+- previous event ID (prev)
+- organization tag (org)
+- status and transition metadata
+
+The client rejects status updates when:
+- the signing key is not registered for the selected role
+- the selected role is not allowed to perform that status
+- the new status is not a valid transition from the shipment's current status
+
+This is a **local trust registry** in the current static application. It is not a globally authoritative access-control system because there is no traditional backend. The signed organization manifest uses kind **38384** and is intended to become the basis for distributed organization verification.
+
+## Security note
+
+Nostr event signatures provide cryptographic integrity and signer identity, but they do not by themselves prove that a signer is authorized by a logistics company. Authorization requires a trusted organization root/key registry. The current browser registry is an MVP trust anchor and should be replaced or synchronized with a stronger organization identity model before production.
+
+NIP-44 private shipment encryption remains the next phase. Public Nostr event fields such as tags and timestamps remain observable even when event content is encrypted.
